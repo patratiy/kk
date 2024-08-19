@@ -33,7 +33,7 @@ class RequestMoySklad extends Command
 
     public function __construct()
     {
-        $this->privateKey = config('moy_sklad');
+        $this->privateKey = config('add.moy_sklad');
 
         parent::__construct();
     }
