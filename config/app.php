@@ -123,6 +123,8 @@ return [
 
     'key' => env('APP_KEY'),
 
+    'moy_sklad' => env('MOY_SKLAD_TOKEN'),
+
     'cipher' => 'AES-256-CBC',
 
     /*
