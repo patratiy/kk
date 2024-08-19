@@ -11,7 +11,7 @@ class RequestMoySklad extends Command
 {
     private const BASE_URL = 'https://api.moysklad.ru/api/remap/1.2';
 
-    private int $limit = 100;
+    private int $limit = 1000;
 
     private int $offset = 0;
 
@@ -33,7 +33,7 @@ class RequestMoySklad extends Command
 
     public function __construct()
     {
-        $this->privateKey = config('add.moy_sklad');
+        $this->privateKey = config('app.moy_sklad');
 
         parent::__construct();
     }
@@ -58,14 +58,14 @@ class RequestMoySklad extends Command
 
         $http = Http::withHeaders(
             [
-                'Authorization' => sprintf('Basic %s', $this->privateKey),
+                'Authorization' => sprintf('Bearer %s', $this->privateKey),
                 'Accept-Encoding' => 'gzip',
             ],
         );
 
         //  curl -X GET
         //  "https://api.moysklad.ru/api/remap/1.2/entity/assortment"
-        //  -H "Authorization: Basic <Credentials>"
+        //  -H "Authorization: Bearer <Credentials>"
         //  -H "Accept-Encoding: gzip"
 
         $response = $http->get(
