@@ -18,12 +18,15 @@ class CreateProductsTable extends Migration
             $table->string('article');
             $table->float('buy_price');
             $table->string('ean13');
+            $table->string('gtin');
 
-            //sale | price one to many
+            //@todo sale_price | one to many
 
-            //images | one to many
+            //@todo images | one to many
 
-            $table->string('supplier');
+            $table->string('supplier_id');
+            $table->string('group_id');
+            $table->string('group_name');
 
             $table->string('brand');
 
