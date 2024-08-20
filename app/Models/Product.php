@@ -11,9 +11,9 @@ class Product extends Model
 
     protected $fillable = ['name', 'price'];
 
-    public function orderItems()
+    public function basket()
     {
-        return $this->hasMany(OrderItem::class);
+        return $this->hasMany(Basket::class);
     }
 
     public function stocks()
