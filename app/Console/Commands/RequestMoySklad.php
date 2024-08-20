@@ -128,27 +128,27 @@ class RequestMoySklad extends Command
             return;
         }
 
-        foreach ($data['rows'] as $item) {
+        foreach ($data['rows'] as $product) {
             $brand = current(
                 array_filter(
-                    $item['attributes'],
+                    $product['attributes'] ?? [],
                     static function (mixed $item) {
                         return $item['id'] === '0076b518-d9b3-11eb-0a80-06ae0011d1aa';
                     },
                 ),
             );
 
-            $folderId = $item['productFolder']
-                ? static::extractGuidFromUri($item['productFolder']['meta']['href'])
+            $folderId = isset($product['productFolder'])
+                ? static::extractGuidFromUri($product['productFolder']['meta']['href'])
                 : '';
 
-            $supplierId = $item['supplier']
-                ? static::extractGuidFromUri($item['supplier']['meta']['href'])
+            $supplierId = isset($product['supplier'])
+                ? static::extractGuidFromUri($product['supplier']['meta']['href'])
                 : '';
 
             $bcodes = [];
 
-            foreach ($item['barcodes'] as $bcode) {
+            foreach ($product['barcodes'] as $bcode) {
                 $key = current(array_keys($bcode));
                 $value = current(array_values($bcode));
                 $bcodes[$key] = $value;
@@ -156,33 +156,36 @@ class RequestMoySklad extends Command
 
             Product::query()->updateOrInsert(
                 [
-                    'ext_id' => $item['id'],
+                    'ext_id' => $product['id'],
                 ],
                 [
-                    'name' => $item['name'],
+                    'name' => $product['name'],
                     'group_id' => $folderId,
-                    'code' => $item['code'],
-                    'ext_code' => $item['externalCode'],
-                    'article' => $item['article'],
-                    'buy_price' => $item['buyPrice']['value'] / 100,
+                    'code' => $product['code'],
+                    'ext_code' => $product['externalCode'],
+                    'article' => $product['article'] ?? '',
+                    'buy_price' => isset($product['buyPrice'])
+                        ? $product['buyPrice']['value'] / 100
+                        : 0,
                     'ean13' => $bcodes['ean13'] ?? '',
                     'gtin' => $bcodes['gtin'] ?? '',
-                    'group_name' => $item['pathName'] ?? '',
+                    'group_name' => $product['pathName'] ?? '',
                     'supplier_id' => $supplierId,
-                    'has_images' => $item['images']['meta']['size'] > 0,
-                    'brand' => $brand['value']['name'],
-                    'stock' => $item['stock'],
-                    'reserve' => $item['reserve'],
-                    'quantity' => $item['quantity'],
-                    'updated_at' => Carbon::parse($item['updated']),
+                    'has_images' => isset($product['images'])
+                        && $product['images']['meta']['size'] > 0,
+                    'brand' => !empty($brand) ? $brand['value']['name'] : '',
+                    'stock' => $product['stock'] ?? 0,
+                    'reserve' => $product['reserve'] ?? 0,
+                    'quantity' => $product['quantity'] ?? 0,
+                    'updated_at' => Carbon::parse($product['updated']),
                 ],
             );
 
             array_map(
-                static function (mixed $item) {
+                static function (mixed $item) use ($product) {
                     Prices::query()->updateOrInsert(
                         [
-                            'product_id' => $item['id'],
+                            'product_id' => $product['id'],
                         ],
                         [
                             'type_name' => $item['priceType']['name'],
@@ -191,7 +194,7 @@ class RequestMoySklad extends Command
                         ],
                     );
                 },
-                $item['salePrices'],
+                $product['salePrices'],
             );
         }
     }
