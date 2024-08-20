@@ -8,7 +8,7 @@ class CreateProductsTable extends Migration
 {
     public function up()
     {
-        Schema::create('products', function (Blueprint $table) {
+        Schema::create('products', static function (Blueprint $table) {
             $table->id();
 
             $table->string('ext_id');
@@ -23,6 +23,7 @@ class CreateProductsTable extends Migration
             //@todo sale_price | one to many
 
             //@todo images | one to many
+            $table->boolean('has_images')->default(false);
 
             $table->string('supplier_id');
             $table->string('group_id');

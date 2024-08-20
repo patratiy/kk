@@ -21,6 +21,7 @@ class Product extends Model
         'stock',
         'reserve',
         'quantity',
+        'has_images',
     ];
 
     public function basket()
@@ -31,5 +32,10 @@ class Product extends Model
     public function stocks()
     {
         return $this->hasMany(Stock::class);
+    }
+
+    public function prices()
+    {
+        return $this->hasMany(Prices::class, 'product_id', 'ext_id');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Prices;
 use App\Models\Product;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -70,6 +71,8 @@ class RequestMoySklad extends Command
         //  -H "Authorization: Bearer <Credentials>"
         //  -H "Accept-Encoding: gzip"
 
+        $start = Carbon::now()->getTimestamp();
+
         $response = $http->get(
             static::getUri($path),
             [
@@ -78,12 +81,31 @@ class RequestMoySklad extends Command
             ],
         );
 
-        match ($this->argument('type')) {
-            'catalog' => static::processCatalogData($response->json()),
-            default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
-        };
+        while ($response['meta']['size'] > $this->offset) {
+            match ($this->argument('type')) {
+                'catalog' => static::processCatalogData($response->json()),
+                default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
+            };
 
-        Log::info(print_r($response->json(), true));
+            $this->offset += $this->limit;
+
+            $response = $http->get(
+                static::getUri($path),
+                [
+                    'limit' => $this->limit,
+                    'offset' => $this->offset,
+                ],
+            );
+        }
+
+        Log::info(
+            'Time spend on execution sync', [
+                'type' => $this->argument('type'),
+                'sec' => Carbon::now()->getTimestamp() - $start,
+            ],
+        );
+
+//        Log::info(print_r($response->json(), true));
 
         $this->info('Data set synchronized successfully!');
 
@@ -147,6 +169,7 @@ class RequestMoySklad extends Command
                     'gtin' => $bcodes['gtin'] ?? '',
                     'group_name' => $item['pathName'] ?? '',
                     'supplier_id' => $supplierId,
+                    'has_images' => $item['images']['meta']['size'] > 0,
                     'brand' => $brand['value']['name'],
                     'stock' => $item['stock'],
                     'reserve' => $item['reserve'],
@@ -155,7 +178,21 @@ class RequestMoySklad extends Command
                 ],
             );
 
-            //@todo сделать запрос на картинку и добавление в отдельную таблицу, для связки использовать id моего склада
+            array_map(
+                static function (mixed $item) {
+                    Prices::query()->updateOrInsert(
+                        [
+                            'product_id' => $item['id'],
+                        ],
+                        [
+                            'type_name' => $item['priceType']['name'],
+                            'type_id' => $item['priceType']['id'],
+                            'value' => $item['value'] / 100,
+                        ],
+                    );
+                },
+                $item['salePrices'],
+            );
         }
     }
 }
