@@ -9,7 +9,19 @@ class Product extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'price'];
+    protected $fillable = [
+        'name',
+        'ext_id',
+        'code',
+        'ext_code',
+        'article',
+        'buy_price',
+        'article',
+        'brand',
+        'stock',
+        'reserve',
+        'quantity',
+    ];
 
     public function basket()
     {

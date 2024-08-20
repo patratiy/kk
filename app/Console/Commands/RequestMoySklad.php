@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Product;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -9,13 +11,12 @@ use RuntimeException;
 
 class RequestMoySklad extends Command
 {
-    private const BASE_URL = 'https://api.moysklad.ru/api/remap/1.2';
-
     private int $limit = 1000;
 
     private int $offset = 0;
 
     private string $privateKey;
+    private static string $baseUrl;
 
     /**
      * The name and signature of the console command.
@@ -34,6 +35,7 @@ class RequestMoySklad extends Command
     public function __construct()
     {
         $this->privateKey = config('app.moy_sklad');
+        static::$baseUrl = config('app.base_url_api_moy_sklad');
 
         parent::__construct();
     }
@@ -69,12 +71,17 @@ class RequestMoySklad extends Command
         //  -H "Accept-Encoding: gzip"
 
         $response = $http->get(
-            $this->getUri($path),
+            static::getUri($path),
             [
                 'limit' => $this->limit,
                 'offset' => $this->offset,
             ],
         );
+
+        match ($this->argument('type')) {
+            'catalog' => static::processCatalogData($response->json()),
+            default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
+        };
 
         Log::info(print_r($response->json(), true));
 
@@ -83,8 +90,72 @@ class RequestMoySklad extends Command
         return Command::SUCCESS;
     }
 
-    private function getUri(string $path): string
+    private static function getUri(string $path): string
     {
-        return static::BASE_URL . $path;
+        return sprintf('%s%s', static::$baseUrl, $path);
+    }
+
+    private static function extractGuidFromUri(string $uri): string
+    {
+        return last(explode('/', $uri));
+    }
+
+    private static function processCatalogData(array $data): void
+    {
+        if (empty($data['rows'])) {
+            return;
+        }
+
+        foreach ($data['rows'] as $item) {
+            $brand = current(
+                array_filter(
+                    $item['attributes'],
+                    static function (mixed $item) {
+                        return $item['id'] === '0076b518-d9b3-11eb-0a80-06ae0011d1aa';
+                    },
+                ),
+            );
+
+            $folderId = $item['productFolder']
+                ? static::extractGuidFromUri($item['productFolder']['meta']['href'])
+                : '';
+
+            $supplierId = $item['supplier']
+                ? static::extractGuidFromUri($item['supplier']['meta']['href'])
+                : '';
+
+            $bcodes = [];
+
+            foreach ($item['barcodes'] as $bcode) {
+                $key = current(array_keys($bcode));
+                $value = current(array_values($bcode));
+                $bcodes[$key] = $value;
+            }
+
+            Product::query()->updateOrInsert(
+                [
+                    'ext_id' => $item['id'],
+                ],
+                [
+                    'name' => $item['name'],
+                    'group_id' => $folderId,
+                    'code' => $item['code'],
+                    'ext_code' => $item['externalCode'],
+                    'article' => $item['article'],
+                    'buy_price' => $item['buyPrice']['value'] / 100,
+                    'ean13' => $bcodes['ean13'] ?? '',
+                    'gtin' => $bcodes['gtin'] ?? '',
+                    'group_name' => $item['pathName'] ?? '',
+                    'supplier_id' => $supplierId,
+                    'brand' => $brand['value']['name'],
+                    'stock' => $item['stock'],
+                    'reserve' => $item['reserve'],
+                    'quantity' => $item['quantity'],
+                    'updated_at' => Carbon::parse($item['updated']),
+                ],
+            );
+
+            //@todo сделать запрос на картинку и добавление в отдельную таблицу, для связки использовать id моего склада
+        }
     }
 }

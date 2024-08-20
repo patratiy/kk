@@ -56,6 +56,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'base_url_api_moy_sklad' => env('BASE_URL_MOY_SKLAD'),
+
     'asset_url' => env('ASSET_URL'),
 
     /*
