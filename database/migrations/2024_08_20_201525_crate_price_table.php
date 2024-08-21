@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -20,7 +21,9 @@ return new class extends Migration
             $table->string('type_name');
             $table->string('type_id');
             $table->double('value');
-            $table->timestamps();
+
+            $table->timestamp('updated_at');
+            $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
         });
     }
 

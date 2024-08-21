@@ -122,6 +122,21 @@ class RequestMoySklad extends Command
         return last(explode('/', $uri));
     }
 
+    private static function getValueAttributeById(
+        array $params,
+        string $attrId,
+    ): string
+    {
+        $item = array_filter(
+            $params['attributes'] ?? [],
+            static function (mixed $item) use ($attrId) {
+                return $item['id'] === $attrId;
+            },
+        );
+
+        return current($item)['value']['name'] ?? '';
+    }
+
     private static function processCatalogData(array $data): void
     {
         if (empty($data['rows'])) {
@@ -129,13 +144,14 @@ class RequestMoySklad extends Command
         }
 
         foreach ($data['rows'] as $product) {
-            $brand = current(
-                array_filter(
-                    $product['attributes'] ?? [],
-                    static function (mixed $item) {
-                        return $item['id'] === '0076b518-d9b3-11eb-0a80-06ae0011d1aa';
-                    },
-                ),
+            $brand = static::getValueAttributeById(
+                params: $product,
+                attrId: '0076b518-d9b3-11eb-0a80-06ae0011d1aa',
+            );
+
+            $status = static::getValueAttributeById(
+                params: $product,
+                attrId: '79075eb4-5557-11ef-0a80-07340020fca4',
             );
 
             $folderId = isset($product['productFolder'])
@@ -148,7 +164,7 @@ class RequestMoySklad extends Command
 
             $bcodes = [];
 
-            foreach ($product['barcodes'] as $bcode) {
+            foreach ($product['barcodes'] ?? [] as $bcode) {
                 $key = current(array_keys($bcode));
                 $value = current(array_values($bcode));
                 $bcodes[$key] = $value;
@@ -164,6 +180,7 @@ class RequestMoySklad extends Command
                     'code' => $product['code'],
                     'ext_code' => $product['externalCode'],
                     'article' => $product['article'] ?? '',
+                    'status' => $status,
                     'buy_price' => isset($product['buyPrice'])
                         ? $product['buyPrice']['value'] / 100
                         : 0,
@@ -186,10 +203,10 @@ class RequestMoySklad extends Command
                     Prices::query()->updateOrInsert(
                         [
                             'product_id' => $product['id'],
+                            'type_id' => $item['priceType']['id'],
                         ],
                         [
                             'type_name' => $item['priceType']['name'],
-                            'type_id' => $item['priceType']['id'],
                             'value' => $item['value'] / 100,
                         ],
                     );
