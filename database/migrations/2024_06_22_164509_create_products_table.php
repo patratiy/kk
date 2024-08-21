@@ -21,9 +21,8 @@ class CreateProductsTable extends Migration
             $table->string('ean13');
             $table->string('gtin');
 
-            //@todo sale_price | one to many
-
             //@todo images | one to many
+
             $table->boolean('has_images')->default(false);
 
             $table->string('supplier_id');

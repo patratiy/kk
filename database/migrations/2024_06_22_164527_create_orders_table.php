@@ -10,10 +10,29 @@ class CreateOrdersTable extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->string('customer');
-            $table->timestamp('completed_at')->nullable();
-            $table->foreignId('warehouse_id')->constrained();
-            $table->string('status');
+
+            $table->string('ext_id');
+
+            $table->string('order_number');
+            $table->string('ext_code');
+            $table->string('code');
+            $table->integer('goods_count');
+
+            $table->float('order_price');
+            $table->float('paid_sum')->default(.0);
+            $table->float('shipped_sum')->default(.0);
+            $table->float('invoiced_sum')->default(.0);
+
+            $table->string('store_id');
+            $table->string('customer_id');
+
+            $table->string('status_id');
+
+            $table->string('payment_type');
+            $table->string('delivery_type');
+            $table->string('customer_type');
+            $table->boolean('has_closed_documents')->default(false);
+
             $table->timestamps();
         });
     }

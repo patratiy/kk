@@ -9,15 +9,24 @@ class Order extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['customer', 'warehouse_id', 'status', 'completed_at'];
+    protected $fillable = [
+        'store_id',
+        'status_id',
+        'customer_id',
+        'created_at',
+        'updated_at',
+        'ext_id',
+        'order_number',
+        'ext_code',
+        'code',
+        'goods_count',
+        'order_price',
+    ];
 
     public function orderItems()
     {
-        return $this->hasMany(OrderItem::class);
+        return $this->hasMany(Basket::class);
     }
 
-    public function warehouse()
-    {
-        return $this->belongsTo(Warehouse::class);
-    }
+    //@todo store
 }

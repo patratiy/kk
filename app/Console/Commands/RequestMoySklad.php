@@ -56,6 +56,7 @@ class RequestMoySklad extends Command
 
         $path = match ($this->argument('type')) {
             'catalog' => '/entity/assortment',
+            'orders' => '/entity/customerorder',
             default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
         };
 
@@ -71,6 +72,11 @@ class RequestMoySklad extends Command
         //  -H "Authorization: Bearer <Credentials>"
         //  -H "Accept-Encoding: gzip"
 
+        //  curl -X GET
+        //  "https://api.moysklad.ru/api/remap/1.2/entity/customerorder"
+        //  -H "Authorization: Bearer <Credentials>"
+        //  -H "Accept-Encoding: gzip"
+
         $start = Carbon::now()->getTimestamp();
 
         $response = $http->get(
@@ -81,9 +87,12 @@ class RequestMoySklad extends Command
             ],
         );
 
+//        Log::info(print_r($response->json(), true));
+
         while ($response['meta']['size'] > $this->offset) {
             match ($this->argument('type')) {
                 'catalog' => static::processCatalogData($response->json()),
+                'orders' => static::processOrderData($response->json()),
                 default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
             };
 
@@ -104,8 +113,6 @@ class RequestMoySklad extends Command
                 'sec' => Carbon::now()->getTimestamp() - $start,
             ],
         );
-
-//        Log::info(print_r($response->json(), true));
 
         $this->info('Data set synchronized successfully!');
 
@@ -135,6 +142,17 @@ class RequestMoySklad extends Command
         );
 
         return current($item)['value']['name'] ?? '';
+    }
+
+    private static function processOrderData(array $data): void
+    {
+        if (empty($data['rows'])) {
+            return;
+        }
+
+        foreach ($data['rows'] as $order) {
+            //@todo
+        }
     }
 
     private static function processCatalogData(array $data): void
@@ -169,6 +187,8 @@ class RequestMoySklad extends Command
                 $value = current(array_values($bcode));
                 $bcodes[$key] = $value;
             }
+
+            //@todo реализовать работу с бандлами
 
             Product::query()->updateOrInsert(
                 [
