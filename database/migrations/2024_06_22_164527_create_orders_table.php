@@ -18,10 +18,10 @@ class CreateOrdersTable extends Migration
             $table->string('code');
             $table->integer('goods_count');
 
-            $table->float('order_price');
-            $table->float('paid_sum')->default(.0);
-            $table->float('shipped_sum')->default(.0);
-            $table->float('invoiced_sum')->default(.0);
+            $table->float('order_price', 15);
+            $table->float('paid_sum', 15)->default(.0);
+            $table->float('shipped_sum', 15)->default(.0);
+            $table->float('invoiced_sum', 15)->default(.0);
 
             $table->string('store_id');
             $table->string('customer_id');

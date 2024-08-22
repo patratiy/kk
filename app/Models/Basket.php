@@ -9,6 +9,8 @@ class Basket extends Model
 {
     use HasFactory;
 
+    protected $table = 'basket';
+
     protected $fillable = [
         'order_id',
         'product_id',

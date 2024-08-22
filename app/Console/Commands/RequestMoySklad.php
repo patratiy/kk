@@ -202,7 +202,7 @@ class RequestMoySklad extends Command
                 [
                     'order_number' => $order['name'],
                     'ext_code' => $order['externalCode'],
-                    'code' => $order['code'],
+                    'code' => $order['code'] ?? '',
                     'goods_count' => $countPosition,
 
                     'order_price' => $order['sum'] / 100,
@@ -217,7 +217,7 @@ class RequestMoySklad extends Command
                     'payment_type' => $paymentType,
                     'delivery_type' => $deliveryType,
                     'customer_type' => $customerType,
-                    'has_closed_documents' => $hasClosedDocuments,
+                    'has_closed_documents' => $hasClosedDocuments ? 1 : 0,
 
                     'updated_at' => Carbon::parse($order['updated']),
                     'created_at' => Carbon::parse($order['created']),
@@ -254,6 +254,7 @@ class RequestMoySklad extends Command
                             'ext_id' => $item['id'],
                             'count' => (int)$item['quantity'],
                             'shipped' => (int)$item['shipped'],
+                            'updated_at' => Carbon::now(),
                         ],
                     );
                 },

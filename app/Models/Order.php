@@ -9,6 +9,8 @@ class Order extends Model
 {
     use HasFactory;
 
+    protected $table = 'orders';
+
     protected $fillable = [
         'store_id',
         'status_id',
@@ -18,7 +20,6 @@ class Order extends Model
         'ext_id',
         'order_number',
         'ext_code',
-        'code',
         'goods_count',
         'order_price',
     ];

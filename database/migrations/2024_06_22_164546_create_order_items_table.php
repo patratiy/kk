@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 class CreateOrderItemsTable extends Migration
 {
@@ -18,7 +19,8 @@ class CreateOrderItemsTable extends Migration
 
             $table->integer('shipped');
 
-            $table->timestamps();
+            $table->timestamp('updated_at');
+            $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
         });
     }
 
