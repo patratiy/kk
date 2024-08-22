@@ -2,10 +2,13 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Basket;
+use App\Models\Order;
 use App\Models\Prices;
 use App\Models\Product;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -54,11 +57,7 @@ class RequestMoySklad extends Command
             return Command::FAILURE;
         }
 
-        $path = match ($this->argument('type')) {
-            'catalog' => '/entity/assortment',
-            'orders' => '/entity/customerorder',
-            default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
-        };
+        $path = static::getMethodPath($this->argument('type'));
 
         $http = Http::withHeaders(
             [
@@ -92,7 +91,7 @@ class RequestMoySklad extends Command
         while ($response['meta']['size'] > $this->offset) {
             match ($this->argument('type')) {
                 'catalog' => static::processCatalogData($response->json()),
-                'orders' => static::processOrderData($response->json()),
+                'orders' => static::processOrderData($response->json(), $http),
                 default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
             };
 
@@ -108,7 +107,8 @@ class RequestMoySklad extends Command
         }
 
         Log::info(
-            'Time spend on execution sync', [
+            'Time spend on execution sync',
+            [
                 'type' => $this->argument('type'),
                 'sec' => Carbon::now()->getTimestamp() - $start,
             ],
@@ -129,8 +129,18 @@ class RequestMoySklad extends Command
         return last(explode('/', $uri));
     }
 
+    private static function getMethodPath(string $type, array $params = []): string
+    {
+        return match ($type) {
+            'catalog' => '/entity/assortment',
+            'orders' => '/entity/customerorder',
+            'basket' => "/entity/customerorder/{$params['order_id']}/positions",
+            default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
+        };
+    }
+
     private static function getValueAttributeById(
-        array $params,
+        array  $params,
         string $attrId,
     ): string
     {
@@ -144,14 +154,111 @@ class RequestMoySklad extends Command
         return current($item)['value']['name'] ?? '';
     }
 
-    private static function processOrderData(array $data): void
+    private static function processOrderData(array $data, PendingRequest $request): void
     {
         if (empty($data['rows'])) {
             return;
         }
 
         foreach ($data['rows'] as $order) {
-            //@todo
+            $countPosition = $order['positions']['meta']['size'] ?? 0;
+
+            $storeId = isset($order['store'])
+                ? static::extractGuidFromUri($order['store']['meta']['href'])
+                : '';
+
+            $customerId = isset($order['agent'])
+                ? static::extractGuidFromUri($order['agent']['meta']['href'])
+                : '';
+
+            $statusId = isset($order['state'])
+                ? static::extractGuidFromUri($order['state']['meta']['href'])
+                : '';
+
+            $paymentType = static::getValueAttributeById(
+                params: $order,
+                attrId: '4c61c702-d33f-11eb-0a80-093100099c0d',
+            );
+
+            $deliveryType = static::getValueAttributeById(
+                params: $order,
+                attrId: '15fd32b9-d056-11eb-0a80-0dc400121910',
+            );
+
+            $customerType = static::getValueAttributeById(
+                params: $order,
+                attrId: 'c8a630e2-d057-11eb-0a80-01ef0011bcc2',
+            );
+
+            $hasClosedDocuments = static::getValueAttributeById(
+                params: $order,
+                attrId: 'Закрывающие документы получены',
+            );
+
+            Order::query()->updateOrInsert(
+                [
+                    'ext_id' => $order['id'],
+                ],
+                [
+                    'order_number' => $order['name'],
+                    'ext_code' => $order['externalCode'],
+                    'code' => $order['code'],
+                    'goods_count' => $countPosition,
+
+                    'order_price' => $order['sum'] / 100,
+                    'paid_sum' => $order['payedSum'] / 100,
+                    'shipped_sum' => $order['shippedSum'] / 100,
+                    'invoiced_sum' => $order['invoicedSum'] / 100,
+
+                    'store_id' => $storeId,
+                    'customer_id' => $customerId,
+                    'status_id' => $statusId,
+
+                    'payment_type' => $paymentType,
+                    'delivery_type' => $deliveryType,
+                    'customer_type' => $customerType,
+                    'has_closed_documents' => $hasClosedDocuments,
+
+                    'updated_at' => Carbon::parse($order['updated']),
+                    'created_at' => Carbon::parse($order['created']),
+                ],
+            );
+
+            //делаем паузу, что бы не спамить сервис, 300 мл.сек
+            usleep(300000);
+
+            $path = static::getMethodPath('basket', ['order_id' => $order['id']]);
+
+            $response = $request->get(
+                static::getUri($path),
+                [
+                    'limit' => 100,
+                    'offset' => 0,
+                ],
+            );
+
+            $basket = $response->json();
+
+            array_map(
+                static function (mixed $item) use ($order) {
+                    $productId = isset($item['assortment'])
+                        ? static::extractGuidFromUri($item['assortment']['meta']['href'])
+                        : '';
+
+                    Basket::query()->updateOrInsert(
+                        [
+                            'order_id' => $order['id'],
+                            'product_id' => $productId,
+                        ],
+                        [
+                            'ext_id' => $item['id'],
+                            'count' => (int)$item['quantity'],
+                            'shipped' => (int)$item['shipped'],
+                        ],
+                    );
+                },
+                $basket['rows'] ?? [],
+            );
         }
     }
 
@@ -160,7 +267,7 @@ class RequestMoySklad extends Command
         if (empty($data['rows'])) {
             return;
         }
-
+        //@todo ускорить синхронизацию, путем анализа даты обновления, брать с запасом, - 2 суток от даты старта скрипта
         foreach ($data['rows'] as $product) {
             $brand = static::getValueAttributeById(
                 params: $product,

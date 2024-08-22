@@ -8,17 +8,22 @@ class CreateOrderItemsTable extends Migration
 {
     public function up()
     {
-        Schema::create('order_items', function (Blueprint $table) {
+        Schema::create('basket', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('order_id')->constrained()->onDelete('cascade');
-            $table->foreignId('product_id')->constrained()->onDelete('cascade');
+
+            $table->string('ext_id');
+            $table->string('order_id');
+            $table->string('product_id');
             $table->integer('count');
+
+            $table->integer('shipped');
+
             $table->timestamps();
         });
     }
 
     public function down()
     {
-        Schema::dropIfExists('order_items');
+        Schema::dropIfExists('basket');
     }
 }
