@@ -38,4 +38,9 @@ class Order extends Model
     {
         return $this->hasOne(OrderStatus::class, 'ext_id', 'status_id');
     }
+
+    public function customer()
+    {
+        return $this->hasOne(Counterparty::class, 'ext_id', 'customer_id');
+    }
 }

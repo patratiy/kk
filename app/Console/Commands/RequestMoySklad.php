@@ -3,6 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\Basket;
+use App\Models\Counterparty;
+use App\Models\CounterPartyStatus;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prices;
@@ -10,6 +12,7 @@ use App\Models\Product;
 use App\Models\Stores;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -95,7 +98,13 @@ class RequestMoySklad extends Command
         );
 
         if ($this->argument('type') === 'status') {
-            static::processDictData($response->json());
+            static::processDictData($response->json(), 'status');
+
+            return Command::SUCCESS;
+        }
+
+        if ($this->argument('type') === 'counterparty_status') {
+            static::processDictData($response->json(), 'counterparty_status');
 
             return Command::SUCCESS;
         }
@@ -107,6 +116,7 @@ class RequestMoySklad extends Command
                 'catalog' => static::processCatalogData($response->json()),
                 'orders' => static::processOrderData($response->json(), $http),
                 'stores' => static::processStoreData($response->json()),
+                'counterparty' => static::processCounterpartyData($response->json()),
                 default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
             };
 
@@ -152,6 +162,8 @@ class RequestMoySklad extends Command
             'basket' => "/entity/customerorder/{$params['order_id']}/positions",
             'stores' => '/entity/store',
             'status' => '/entity/customerorder/metadata',
+            'counterparty' => '/entity/counterparty',
+            'counterparty_status' => '/entity/counterparty/metadata',
             default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
         };
     }
@@ -192,14 +204,22 @@ class RequestMoySklad extends Command
         }
     }
 
-    private static function processDictData(array $data): void
+    private static function processDictData(array $data, string $type): void
     {
         if (empty($data['states'])) {
             return;
         }
 
+        /**
+         * @var Model $model
+         */
+        $model = match($type) {
+            'status' => OrderStatus::class,
+            'counterparty_status' => CounterPartyStatus::class,
+        };
+
         foreach ($data['states'] as $states) {
-            OrderStatus::query()->updateOrInsert(
+            $model::query()->updateOrInsert(
                 [
                     'ext_id' => $states['id'],
                 ],
@@ -207,6 +227,51 @@ class RequestMoySklad extends Command
                     'name' => $states['name'],
                     'color' => $states['color'],
                     'state_type' => $states['stateType'],
+                ],
+            );
+        }
+    }
+
+    private static function processCounterpartyData(array $data): void
+    {
+        if (empty($data['rows'])) {
+            return;
+        }
+
+        foreach ($data['rows'] as $counterparty) {
+            $statusId = isset($counterparty['state'])
+                ? static::extractGuidFromUri($counterparty['state']['meta']['href'])
+                : '';
+
+            Counterparty::query()->updateOrInsert(
+                [
+                    'ext_id' => $counterparty['id'],
+                ],
+                [
+                    'status_id' => $statusId,
+
+                    'name' => $counterparty['name'],
+                    'description' => $counterparty['description'] ?? '',
+                    'phone' => $counterparty['phone'] ?? '',
+                    'email' => $counterparty['email'] ?? '',
+                    'legal_middle_name' => $counterparty['legalMiddleName'] ?? '',
+                    'legal_first_name' => $counterparty['legalFirstName'] ?? '',
+                    'legal_last_name' => $counterparty['legalLastName'] ?? '',
+                    'ogrnip' => $counterparty['ogrnip'] ?? '',
+                    'ogrn' => $counterparty['ogrn'] ?? '',
+                    'okpo' => $counterparty['okpo'] ?? '',
+                    'inn' => $counterparty['inn'] ?? '',
+                    'actual_address' => $counterparty['actualAddress'] ?? '',
+                    'legal_address' => $counterparty['legalAddress'] ?? '',
+                    'company_name' => $counterparty['legalTitle'] ?? '',
+                    'company_type' => $counterparty['companyType'],
+                    'ext_code' => $counterparty['externalCode'],
+                    'sales_amount' => $counterparty['salesAmount'] ?? .0,
+                    'tags' => $counterparty['tags']
+                        ? implode(',', $counterparty['tags']) : '',
+
+                    'updated_at' => Carbon::parse($counterparty['updated']),
+                    'created_at' => Carbon::parse($counterparty['created']),
                 ],
             );
         }
