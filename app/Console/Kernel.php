@@ -16,7 +16,10 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         // $schedule->command('inspire')->hourly();
-        $schedule->command('sync:moysklad orders')->dailyAt('00:30');
+        $schedule->command('sync:moysklad orders')
+            ->dailyAt('00:30')
+            ->runInBackground()
+            ->withoutOverlapping();
     }
     protected $commands = [
         \App\Console\Commands\SeedTestData::class,
