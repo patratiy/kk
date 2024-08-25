@@ -4,14 +4,17 @@ namespace App\Console\Commands;
 
 use App\Models\Basket;
 use App\Models\Order;
+use App\Models\OrderStatus;
 use App\Models\Prices;
 use App\Models\Product;
+use App\Models\Stores;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
+use SplFixedArray;
 
 class RequestMoySklad extends Command
 {
@@ -83,6 +86,7 @@ class RequestMoySklad extends Command
             [
                 'limit' => $this->limit,
                 'offset' => $this->offset,
+                'order' => 'updated,asc',
             ],
         );
 
@@ -92,6 +96,8 @@ class RequestMoySklad extends Command
             match ($this->argument('type')) {
                 'catalog' => static::processCatalogData($response->json()),
                 'orders' => static::processOrderData($response->json(), $http),
+                'stores' => static::processStoreData($response->json()),
+                'status' => static::processDictData($response->json()),
                 default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
             };
 
@@ -135,6 +141,8 @@ class RequestMoySklad extends Command
             'catalog' => '/entity/assortment',
             'orders' => '/entity/customerorder',
             'basket' => "/entity/customerorder/{$params['order_id']}/positions",
+            'stores' => '/entity/store',
+            'status' => '/entity/customerorder/metadata',
             default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
         };
     }
@@ -154,13 +162,72 @@ class RequestMoySklad extends Command
         return current($item)['value']['name'] ?? '';
     }
 
+    private static function processStoreData(array $data): void
+    {
+        if (empty($data['rows'])) {
+            return;
+        }
+
+        foreach ($data['rows'] as $store) {
+            Stores::query()->updateOrInsert(
+                [
+                    'ext_id' => $store['id'],
+                ],
+                [
+                    'name' => $store['name'],
+                    'address' => $store['address'] ?? '',
+                    'ext_code' => $store['externalCode'],
+                    'updated_at' => Carbon::parse($store['updated']),
+                ],
+            );
+        }
+    }
+
+    private static function processDictData(array $data): void
+    {
+        if (empty($data['states'])) {
+            return;
+        }
+
+        foreach ($data['states'] as $states) {
+            OrderStatus::query()->updateOrInsert(
+                [
+                    'ext_id' => $states['id'],
+                ],
+                [
+                    'name' => $states['name'],
+                    'color' => $states['color'],
+                    'state_type' => $states['stateType'],
+                ],
+            );
+        }
+    }
+
     private static function processOrderData(array $data, PendingRequest $request): void
     {
         if (empty($data['rows'])) {
             return;
         }
 
+        //@todo временный код, удалить после синхры
+        $orders = Order::query()->where(
+            'updated_at',
+            '>',
+            Carbon::parse('2024-01-01'),
+        )->get(['ext_id'])->toArray();
+
+        $orderIds = array_column($orders, 'ext_id');
+
+        $array = new SplFixedArray();
+        $array->setSize(count($orderIds));
+
+        $speedImprove = array_combine($orderIds, $array->toArray());
+
         foreach ($data['rows'] as $order) {
+            if (array_key_exists($order['id'], $speedImprove)) {
+                continue;
+            }
+
             $countPosition = $order['positions']['meta']['size'] ?? 0;
 
             $storeId = isset($order['store'])
@@ -224,8 +291,12 @@ class RequestMoySklad extends Command
                 ],
             );
 
+            if (empty($countPosition)) {
+                continue;
+            }
+
             //делаем паузу, что бы не спамить сервис, 300 мл.сек
-            usleep(300000);
+            sleep(3);
 
             $path = static::getMethodPath('basket', ['order_id' => $order['id']]);
 
@@ -236,6 +307,11 @@ class RequestMoySklad extends Command
                     'offset' => 0,
                 ],
             );
+
+            if ($response->status() === 429) {
+                Log::error('Service response with 429', ['order_id' => $order['id']]);
+                sleep(10);
+            }
 
             $basket = $response->json();
 
@@ -254,7 +330,7 @@ class RequestMoySklad extends Command
                             'ext_id' => $item['id'],
                             'count' => (int)$item['quantity'],
                             'shipped' => (int)$item['shipped'],
-                            'updated_at' => Carbon::now(),
+                            'updated_at' => Carbon::parse($order['updated']),
                         ],
                     );
                 },

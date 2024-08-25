@@ -2,9 +2,19 @@
 
 namespace App\Models;
 
-enum OrderStatus: string
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class OrderStatus extends Model
 {
-    case Active = 'active';
-    case Completed = 'completed';
-    case Canceled = 'canceled';
+    use HasFactory;
+
+    protected $table = 'order_status';
+
+    protected $fillable = [
+        'ext_id',
+        'name',
+        'color',
+        'state_type',
+    ];
 }

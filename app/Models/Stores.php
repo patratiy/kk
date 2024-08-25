@@ -5,11 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Warehouse extends Model
+class Stores extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $table = 'stores';
+
+    protected $fillable = [
+        'ext_id',
+        'name',
+        'address',
+        'externalCode',
+    ];
 
     public function orders()
     {

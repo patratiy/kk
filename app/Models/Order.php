@@ -29,5 +29,13 @@ class Order extends Model
         return $this->hasMany(Basket::class);
     }
 
-    //@todo store
+    public function store()
+    {
+        return $this->hasOne(Stores::class, 'ext_id', 'store_id');
+    }
+
+    public function orderStatus()
+    {
+        return $this->hasOne(OrderStatus::class, 'ext_id', 'status_id');
+    }
 }
