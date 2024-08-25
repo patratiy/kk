@@ -18,7 +18,7 @@ class CreateStoresTable extends Migration
 
                 $table->string('name');
                 $table->string('address');
-                $table->string('externalCode');
+                $table->string('ext_code');
 
                 $table->timestamp('updated_at');
                 $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));

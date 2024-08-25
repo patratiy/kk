@@ -69,6 +69,10 @@ class RequestMoySklad extends Command
             ],
         );
 
+        $http
+            ->connectTimeout(30)
+            ->retry(5, 5000);
+
         //  curl -X GET
         //  "https://api.moysklad.ru/api/remap/1.2/entity/assortment"
         //  -H "Authorization: Bearer <Credentials>"
@@ -90,6 +94,12 @@ class RequestMoySklad extends Command
             ],
         );
 
+        if ($this->argument('type') === 'status') {
+            static::processDictData($response->json());
+
+            return Command::SUCCESS;
+        }
+
 //        Log::info(print_r($response->json(), true));
 
         while ($response['meta']['size'] > $this->offset) {
@@ -97,7 +107,6 @@ class RequestMoySklad extends Command
                 'catalog' => static::processCatalogData($response->json()),
                 'orders' => static::processOrderData($response->json(), $http),
                 'stores' => static::processStoreData($response->json()),
-                'status' => static::processDictData($response->json()),
                 default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
             };
 
