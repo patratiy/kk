@@ -9,15 +9,24 @@ class Stock extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['product_id', 'warehouse_id', 'stock'];
+    protected $table = 'stocks';
+
+    protected $fillable = [
+        'product_id',
+        'store_id',
+        'name',
+        'stock',
+        'reserve',
+        'in_transit',
+    ];
 
     public function product()
     {
-        return $this->belongsTo(Product::class);
+        return $this->hasOne(Product::class, 'ext_id', 'product_id');
     }
 
-    public function warehouse()
+    public function store()
     {
-        return $this->belongsTo(Warehouse::class);
+        return $this->hasOne(Stores::class, 'ext_id', 'store_id');
     }
 }

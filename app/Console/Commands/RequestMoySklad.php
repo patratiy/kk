@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prices;
 use App\Models\Product;
+use App\Models\Stock;
 use App\Models\Stores;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -117,6 +118,7 @@ class RequestMoySklad extends Command
                 'orders' => static::processOrderData($response->json(), $http),
                 'stores' => static::processStoreData($response->json()),
                 'counterparty' => static::processCounterpartyData($response->json()),
+                'stocks' => static::processStocksData($response->json()),
                 default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
             };
 
@@ -164,6 +166,7 @@ class RequestMoySklad extends Command
             'status' => '/entity/customerorder/metadata',
             'counterparty' => '/entity/counterparty',
             'counterparty_status' => '/entity/counterparty/metadata',
+            'stocks' => '/report/stock/bystore',
             default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
         };
     }
@@ -228,6 +231,38 @@ class RequestMoySklad extends Command
                     'color' => $states['color'],
                     'state_type' => $states['stateType'],
                 ],
+            );
+        }
+    }
+
+    private static function processStocksData(array $data): void
+    {
+        if (empty($data['rows'])) {
+            return;
+        }
+
+        foreach ($data['rows'] as $stock) {
+            $productId = static::extractGuidFromUri(parse_url($stock['meta']['href']));
+
+            array_map(
+                static function(mixed $item) use ($productId) {
+                    $storeId = static::extractGuidFromUri($item['meta']['href']);
+
+                    Stock::query()->updateOrInsert(
+                        [
+                            'product_id' => $productId,
+                            'store_id' => $storeId,
+                        ],
+                        [
+                            'name' => $item['name'],
+                            'stock' => $item['stock'] ?? .0,
+                            'reserve' => $item['reserve'] ?? .0,
+                            'in_transit' => $item['inTransit'] ?? .0,
+                            'updated_at' => Carbon::now(),
+                        ],
+                    );
+                },
+                $stock['stockByStore'],
             );
         }
     }
