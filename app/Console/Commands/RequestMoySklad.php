@@ -94,7 +94,7 @@ class RequestMoySklad extends Command
             [
                 'limit' => $this->limit,
                 'offset' => $this->offset,
-                'order' => 'updated,asc',
+//                'order' => 'updated,asc',
             ],
         );
 
@@ -242,7 +242,8 @@ class RequestMoySklad extends Command
         }
 
         foreach ($data['rows'] as $stock) {
-            $productId = static::extractGuidFromUri(parse_url($stock['meta']['href']));
+            $part = parse_url($stock['meta']['href']);
+            $productId = static::extractGuidFromUri($part['path']);
 
             array_map(
                 static function(mixed $item) use ($productId) {
