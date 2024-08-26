@@ -14,6 +14,7 @@ class CreateStocksTable extends Migration
             static function (Blueprint $table) {
                 $table->string('product_id');
                 $table->string('store_id');
+                $table->string('store_name');
                 $table->float('stock');
                 $table->float('reserve');
                 $table->float('in_transit');
