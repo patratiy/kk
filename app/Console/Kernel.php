@@ -16,8 +16,29 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         // $schedule->command('inspire')->hourly();
+
         $schedule->command('sync:moysklad orders')
-            ->dailyAt('00:30')
+            ->hourlyAt([0, 30])
+            ->runInBackground()
+            ->withoutOverlapping();
+
+        $schedule->command('sync:moysklad catalog')
+            ->hourlyAt([10, 40])
+            ->runInBackground()
+            ->withoutOverlapping();
+
+        $schedule->command('sync:moysklad stores')
+            ->hourlyAt([15, 45])
+            ->runInBackground()
+            ->withoutOverlapping();
+
+        $schedule->command('sync:moysklad counterparty')
+            ->hourlyAt([16, 46])
+            ->runInBackground()
+            ->withoutOverlapping();
+
+        $schedule->command('sync:moysklad stocks')
+            ->hourlyAt([20, 50])
             ->runInBackground()
             ->withoutOverlapping();
     }

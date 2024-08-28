@@ -94,7 +94,7 @@ class RequestMoySklad extends Command
             [
                 'limit' => $this->limit,
                 'offset' => $this->offset,
-//                'order' => 'updated,asc',
+                'filter' => sprintf('updated>%s', Carbon::now()->subDay()->format('Y-m-d H:i:s.v'))
             ],
         );
 
@@ -331,7 +331,8 @@ class RequestMoySklad extends Command
         $array = new SplFixedArray();
         $array->setSize(count($orderIds));
 
-        $speedImprove = array_combine($orderIds, $array->toArray());
+        //$speedImprove = array_combine($orderIds, $array->toArray());
+        $speedImprove = [];
 
         foreach ($data['rows'] as $order) {
             if (array_key_exists($order['id'], $speedImprove)) {
