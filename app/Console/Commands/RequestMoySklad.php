@@ -89,14 +89,17 @@ class RequestMoySklad extends Command
 
         $start = Carbon::now()->getTimestamp();
 
-        $response = $http->get(
-            static::getUri($path),
-            [
-                'limit' => $this->limit,
-                'offset' => $this->offset,
-                'filter' => sprintf('updated>%s', Carbon::now()->subDay()->format('Y-m-d H:i:s.v'))
-            ],
-        );
+        $params = [
+            'limit' => $this->limit,
+            'offset' => $this->offset,
+            'filter' => sprintf('updated>%s', Carbon::now()->subDays(3)->format('Y-m-d H:i:s.v'))
+        ];
+
+        if ($this->argument('type') === 'stocks') {
+            unset($params['filter']);
+        }
+
+        $response = $http->get(static::getUri($path), $params);
 
         if ($this->argument('type') === 'status') {
             static::processDictData($response->json(), 'status');
@@ -124,13 +127,7 @@ class RequestMoySklad extends Command
 
             $this->offset += $this->limit;
 
-            $response = $http->get(
-                static::getUri($path),
-                [
-                    'limit' => $this->limit,
-                    'offset' => $this->offset,
-                ],
-            );
+            $response = $http->get(static::getUri($path), $params);
         }
 
         Log::info(
@@ -331,6 +328,7 @@ class RequestMoySklad extends Command
         $array = new SplFixedArray();
         $array->setSize(count($orderIds));
 
+        //@todo используется только при полной подгрузке каталога
         //$speedImprove = array_combine($orderIds, $array->toArray());
         $speedImprove = [];
 
@@ -406,7 +404,7 @@ class RequestMoySklad extends Command
                 continue;
             }
 
-            //делаем паузу, что бы не спамить сервис, 300 мл.сек
+            //делаем паузу, что бы не спамить сервис, 3 сек
             sleep(3);
 
             $path = static::getMethodPath('basket', ['order_id' => $order['id']]);
@@ -414,7 +412,7 @@ class RequestMoySklad extends Command
             $response = $request->get(
                 static::getUri($path),
                 [
-                    'limit' => 100,
+                    'limit' => 300,
                     'offset' => 0,
                 ],
             );
