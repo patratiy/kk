@@ -418,7 +418,10 @@ class RequestMoySklad extends Command
             );
 
             if ($response->status() === 429) {
-                Log::error('Service response with 429', ['order_id' => $order['id']]);
+                Log::error(
+                    'Service response with 429, wait 10 sec',
+                    ['order_id' => $order['id']],
+                );
                 sleep(10);
             }
 
@@ -430,6 +433,10 @@ class RequestMoySklad extends Command
                         ? static::extractGuidFromUri($item['assortment']['meta']['href'])
                         : '';
 
+                    $product = Product::query()
+                        ->where('ext_id', '=', $productId)
+                        ->get(['buy_price']);
+
                     Basket::query()->updateOrInsert(
                         [
                             'order_id' => $order['id'],
@@ -439,6 +446,9 @@ class RequestMoySklad extends Command
                             'ext_id' => $item['id'],
                             'count' => (int)$item['quantity'],
                             'shipped' => (int)$item['shipped'],
+                            'buy_price' => $product['buy_price'] ?? .0,
+                            'sale_price' => $item['price'] ?? .0,
+                            'discount' => $item['discount'] ?? .0,
                             'updated_at' => Carbon::parse($order['updated']),
                         ],
                     );
