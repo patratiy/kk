@@ -126,6 +126,7 @@ class RequestMoySklad extends Command
             };
 
             $this->offset += $this->limit;
+            $params['offset'] = $this->offset;
 
             $response = $http->get(static::getUri($path), $params);
         }
@@ -405,7 +406,7 @@ class RequestMoySklad extends Command
             }
 
             //делаем паузу, что бы не спамить сервис, 3 сек
-            sleep(3);
+            sleep(1);
 
             $path = static::getMethodPath('basket', ['order_id' => $order['id']]);
 
@@ -433,21 +434,38 @@ class RequestMoySklad extends Command
                         ? static::extractGuidFromUri($item['assortment']['meta']['href'])
                         : '';
 
-                    $product = Product::query()
-                        ->where('ext_id', '=', $productId)
-                        ->get(['buy_price']);
+                    if (!str_contains($item['assortment']['meta']['href'], 'product')) {
+                        $productId = '';
+                    }
+
+                    if (!empty($productId)) {
+                        $product = Product::query()
+                            ->where('ext_id', '=', $productId)
+                            ->get(['buy_price']);
+                    }
+
+                    Log::info(
+                        'order position',
+                        [
+                            'order' => $order['id'],
+                            'product' => $productId,
+                            'price' => $item['price'] / 100,
+                            'buy_price' => $product['buy_price'] ?? 0,
+                        ],
+                    );
 
                     Basket::query()->updateOrInsert(
                         [
-                            'order_id' => $order['id'],
-                            'product_id' => $productId,
+                            'ext_id' => $item['id'],
                         ],
                         [
-                            'ext_id' => $item['id'],
+                            'order_id' => $order['id'],
+                            'product_id' => $productId,
                             'count' => (int)$item['quantity'],
                             'shipped' => (int)$item['shipped'],
                             'buy_price' => $product['buy_price'] ?? .0,
-                            'sale_price' => $item['price'] ?? .0,
+                            'sale_price' => $item['price']
+                                ? ((float)$item['price'] / 100) : .0,
                             'discount' => $item['discount'] ?? .0,
                             'updated_at' => Carbon::parse($order['updated']),
                         ],
