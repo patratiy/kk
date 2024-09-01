@@ -18,8 +18,8 @@ return new class extends Migration
                 'basket',
                 static function (Blueprint $table) {
                     $table->float('sale_price', 15);
-                    $table->float('discount', 15);
-                    $table->float('buy_price', 15);
+                    $table->float('discount', 15)->nullable();
+                    $table->float('buy_price', 15)->nullable();
                 }
             );
         }
