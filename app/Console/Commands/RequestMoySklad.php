@@ -317,27 +317,7 @@ class RequestMoySklad extends Command
             return;
         }
 
-        //@todo временный код, удалить после синхры
-        $orders = Order::query()->where(
-            'updated_at',
-            '>',
-            Carbon::parse('2024-01-01'),
-        )->get(['ext_id'])->toArray();
-
-        $orderIds = array_column($orders, 'ext_id');
-
-        $array = new SplFixedArray();
-        $array->setSize(count($orderIds));
-
-        //@todo используется только при полной подгрузке каталога
-        //$speedImprove = array_combine($orderIds, $array->toArray());
-        $speedImprove = [];
-
         foreach ($data['rows'] as $order) {
-            if (array_key_exists($order['id'], $speedImprove)) {
-                continue;
-            }
-
             $countPosition = $order['positions']['meta']['size'] ?? 0;
 
             $storeId = isset($order['store'])
@@ -406,7 +386,7 @@ class RequestMoySklad extends Command
             }
 
             //делаем паузу, что бы не спамить сервис, 3 сек
-            sleep(1);
+            usleep(500000);
 
             $path = static::getMethodPath('basket', ['order_id' => $order['id']]);
 
@@ -441,7 +421,8 @@ class RequestMoySklad extends Command
                     if (!empty($productId)) {
                         $product = Product::query()
                             ->where('ext_id', '=', $productId)
-                            ->get(['buy_price']);
+                            ->get(['buy_price'])
+                            ->first()?->toArray() ?? [];
                     }
 
                     Log::info(
