@@ -126,6 +126,7 @@ class RequestMoySklad extends Command
             };
 
             $this->offset += $this->limit;
+            $params['offset'] = $this->offset;
 
             $response = $http->get(static::getUri($path), $params);
         }
@@ -316,27 +317,7 @@ class RequestMoySklad extends Command
             return;
         }
 
-        //@todo временный код, удалить после синхры
-        $orders = Order::query()->where(
-            'updated_at',
-            '>',
-            Carbon::parse('2024-01-01'),
-        )->get(['ext_id'])->toArray();
-
-        $orderIds = array_column($orders, 'ext_id');
-
-        $array = new SplFixedArray();
-        $array->setSize(count($orderIds));
-
-        //@todo используется только при полной подгрузке каталога
-        //$speedImprove = array_combine($orderIds, $array->toArray());
-        $speedImprove = [];
-
         foreach ($data['rows'] as $order) {
-            if (array_key_exists($order['id'], $speedImprove)) {
-                continue;
-            }
-
             $countPosition = $order['positions']['meta']['size'] ?? 0;
 
             $storeId = isset($order['store'])
@@ -405,7 +386,7 @@ class RequestMoySklad extends Command
             }
 
             //делаем паузу, что бы не спамить сервис, 3 сек
-            sleep(3);
+            usleep(500000);
 
             $path = static::getMethodPath('basket', ['order_id' => $order['id']]);
 
@@ -418,7 +399,10 @@ class RequestMoySklad extends Command
             );
 
             if ($response->status() === 429) {
-                Log::error('Service response with 429', ['order_id' => $order['id']]);
+                Log::error(
+                    'Service response with 429, wait 10 sec',
+                    ['order_id' => $order['id']],
+                );
                 sleep(10);
             }
 
@@ -430,15 +414,40 @@ class RequestMoySklad extends Command
                         ? static::extractGuidFromUri($item['assortment']['meta']['href'])
                         : '';
 
+                    if (!str_contains($item['assortment']['meta']['href'], 'product')) {
+                        $productId = '';
+                    }
+
+                    if (!empty($productId)) {
+                        $product = Product::query()
+                            ->where('ext_id', '=', $productId)
+                            ->get(['buy_price'])
+                            ->first()?->toArray() ?? [];
+                    }
+
+                    Log::info(
+                        'order position',
+                        [
+                            'order' => $order['id'],
+                            'product' => $productId,
+                            'price' => $item['price'] / 100,
+                            'buy_price' => $product['buy_price'] ?? 0,
+                        ],
+                    );
+
                     Basket::query()->updateOrInsert(
+                        [
+                            'ext_id' => $item['id'],
+                        ],
                         [
                             'order_id' => $order['id'],
                             'product_id' => $productId,
-                        ],
-                        [
-                            'ext_id' => $item['id'],
                             'count' => (int)$item['quantity'],
                             'shipped' => (int)$item['shipped'],
+                            'buy_price' => $product['buy_price'] ?? .0,
+                            'sale_price' => $item['price']
+                                ? ((float)$item['price'] / 100) : .0,
+                            'discount' => $item['discount'] ?? .0,
                             'updated_at' => Carbon::parse($order['updated']),
                         ],
                     );

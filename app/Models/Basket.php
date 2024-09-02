@@ -15,15 +15,17 @@ class Basket extends Model
         'order_id',
         'product_id',
         'count',
+        'sale_price',
+        'discount',
     ];
 
     public function order()
     {
-        return $this->belongsTo(Order::class, 'ext_id', 'order_id');
+        return $this->hasOne(Order::class, 'ext_id', 'order_id');
     }
 
     public function product()
     {
-        return $this->belongsTo(Product::class, 'ext_id', 'product_id');
+        return $this->hasOne(Product::class, 'ext_id', 'product_id');
     }
 }
