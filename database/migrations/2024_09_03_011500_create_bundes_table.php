@@ -21,6 +21,7 @@ class CreateBundleTable extends Migration
                 $table->string('article');
                 $table->string('ean13');
                 $table->string('gtin');
+                $table->string('brand');
 
                 $table->string('group_name');
                 $table->string('group_id');

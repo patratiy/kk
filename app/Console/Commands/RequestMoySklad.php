@@ -169,7 +169,7 @@ class RequestMoySklad extends Command
             'counterparty_status' => '/entity/counterparty/metadata',
             'stocks' => '/report/stock/bystore',
             'bundles' => '/entity/bundle',
-            'components' => "/entity/bundle/{$params['bundle_id']}}/components",
+            'components' => "/entity/bundle/{$params['bundle_id']}/components",
             default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
         };
     }
