@@ -16,7 +16,6 @@ class Product extends Model
         'ext_code',
         'article',
         'buy_price',
-        'article',
         'brand',
         'stock',
         'reserve',
