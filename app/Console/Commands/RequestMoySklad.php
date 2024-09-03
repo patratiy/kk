@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prices;
 use App\Models\Product;
+use App\Models\ProductsBundles;
 use App\Models\Stock;
 use App\Models\Stores;
 use Carbon\Carbon;
@@ -153,7 +154,7 @@ class RequestMoySklad extends Command
 
     private static function extractGuidFromUri(string $uri): string
     {
-        return last(explode('/', $uri));
+        return last(explode('/', $uri)) ?: '';
     }
 
     private static function getMethodPath(string $type, array $params = []): string
@@ -491,7 +492,16 @@ class RequestMoySklad extends Command
                     'ext_id' => $bundle['id']
                 ],
                 [
-
+                    'name' => $bundle['name'],
+                    'group_id' => $folderId,
+                    'code' => $bundle['code'],
+                    'ext_code' => $bundle['externalCode'],
+                    'article' => $bundle['article'] ?? '',
+                    'ean13' => $bcodes['ean13'] ?? '',
+                    'gtin' => $bcodes['gtin'] ?? '',
+                    'group_name' => $product['pathName'] ?? '',
+                    'brand' => $brand,
+                    'updated_at' => Carbon::parse($product['updated']),
                 ],
             );
 
@@ -518,7 +528,7 @@ class RequestMoySklad extends Command
             $response = $request->get(
                 static::getUri($path),
                 [
-                    'limit' => 300,
+                    'limit' => 50,
                     'offset' => 0,
                 ],
             );
@@ -535,12 +545,14 @@ class RequestMoySklad extends Command
 
             array_map(
                 static function (mixed $item) use ($bundle) {
-                    Basket::query()->updateOrInsert(
+                    ProductsBundles::query()->updateOrInsert(
                         [
                             'ext_id' => $item['id'],
                         ],
                         [
-
+                            'bundle_id' => $bundle['id'],
+                            'product_id' => static::extractGuidFromUri($bundle['productFolder']['meta']['href'] ?? ''),
+                            'quantity' => (int)$item['quantity'],
                         ],
                     );
                 },
