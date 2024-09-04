@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\AddressOrder;
 use App\Models\Basket;
 use App\Models\Bundles;
 use App\Models\Counterparty;
@@ -11,6 +12,7 @@ use App\Models\OrderStatus;
 use App\Models\Prices;
 use App\Models\Product;
 use App\Models\ProductsBundles;
+use App\Models\ProductType;
 use App\Models\Region;
 use App\Models\Stock;
 use App\Models\Stores;
@@ -95,7 +97,7 @@ class RequestMoySklad extends Command
         $params = [
             'limit' => $this->limit,
             'offset' => $this->offset,
-            'filter' => sprintf('updated>%s', Carbon::now()->subDays(3)->format('Y-m-d H:i:s.v'))
+            'filter' => sprintf('updated>%s', Carbon::now()->subDays(3)->format('Y-m-d H:i:s.v')),
         ];
 
         if ($this->argument('type') === 'stocks') {
@@ -241,7 +243,7 @@ class RequestMoySklad extends Command
         /**
          * @var Model $model
          */
-        $model = match($type) {
+        $model = match ($type) {
             'status' => OrderStatus::class,
             'counterparty_status' => CounterPartyStatus::class,
         };
@@ -271,7 +273,7 @@ class RequestMoySklad extends Command
             $productId = static::extractGuidFromUri($part['path']);
 
             array_map(
-                static function(mixed $item) use ($productId) {
+                static function (mixed $item) use ($productId) {
                     $storeId = static::extractGuidFromUri($item['meta']['href']);
 
                     Stock::query()->updateOrInsert(
@@ -376,7 +378,27 @@ class RequestMoySklad extends Command
 
             $hasClosedDocuments = static::getValueAttributeById(
                 params: $order,
-                attrId: 'Закрывающие документы получены',
+                attrId: 'b90ce931-b2f8-11eb-0a80-026100064a82',
+            );
+
+            $siteId = static::getValueAttributeById(
+                params: $order,
+                attrId: '0bc6e799-6466-11ef-0a80-0cfe000750fc',
+            );
+
+            $sourceId = static::getValueAttributeById(
+                params: $order,
+                attrId: '9b1b27d9-6466-11ef-0a80-138d0011b5fa',
+            );
+
+            $orderSource = static::getValueAttributeById(
+                params: $order,
+                attrId: 'e2cf94e3-5fcf-11ef-0a80-00170017b1c2',
+            );
+
+            $reasonCancel = static::getValueAttributeById(
+                params: $order,
+                attrId: '0f637ae8-6315-11ef-0a80-11d8002e6aa1',
             );
 
             Order::query()->updateOrInsert(
@@ -397,16 +419,41 @@ class RequestMoySklad extends Command
                     'store_id' => $storeId,
                     'customer_id' => $customerId,
                     'status_id' => $statusId,
-
+                    // attributes of order
                     'payment_type' => $paymentType,
                     'delivery_type' => $deliveryType,
                     'customer_type' => $customerType,
                     'has_closed_documents' => $hasClosedDocuments ? 1 : 0,
 
+                    'site_id' => $siteId,
+                    'source_id' => $sourceId,
+                    'order_source' => $orderSource,
+                    'reason_cancel' => $reasonCancel,
+
                     'updated_at' => Carbon::parse($order['updated']),
                     'created_at' => Carbon::parse($order['created']),
                 ],
             );
+
+            if (
+                !empty($order['shipmentAddress'])
+                && !empty($order['shipmentAddressFull'])
+            ) {
+                $regionId = isset($order['shipmentAddressFull']['region'])
+                    ? static::extractGuidFromUri($order['shipmentAddressFull']['region']['meta']['href'])
+                    : '';
+
+                AddressOrder::query()->updateOrInsert(
+                    [
+                        'order_id' => $order['id'],
+                    ],
+                    [
+                        'full_address' => $order['shipmentAddress'],
+                        'city' => $order['shipmentAddressFull']['city'],
+                        'region_id' => $regionId,
+                    ],
+                );
+            }
 
             if (empty($countPosition)) {
                 continue;
@@ -441,18 +488,32 @@ class RequestMoySklad extends Command
                         ? static::extractGuidFromUri($item['assortment']['meta']['href'])
                         : '';
 
-                    if (
-                        !str_contains($item['assortment']['meta']['href'], 'product')
-                        || !str_contains($item['assortment']['meta']['href'], 'bundle')
-                    ) {
+                    $isProduct = str_contains($item['assortment']['meta']['href'], 'product');
+                    $isBundle = str_contains($item['assortment']['meta']['href'], 'bundle');
+
+                    if (!$isProduct && !$isBundle) {
                         $productId = '';
                     }
 
                     if (!empty($productId)) {
-                        $product = Product::query()
-                            ->where('ext_id', '=', $productId)
-                            ->get(['buy_price'])
-                            ->first()?->toArray() ?? [];
+                        $type = '';
+
+                        if ($isBundle) {
+                            $type = ProductType::Bundle->value;
+                        }
+
+                        if ($isProduct) {
+                            $type = ProductType::Product->value;
+                        }
+
+                        $product = match ($type) {
+                            ProductType::Product->value => Product::query()
+                                ->where('ext_id', '=', $productId)
+                                ->get(['buy_price'])
+                                ->first()?->toArray() ?? [],
+                            ProductType::Bundle->value => static::getBundleBuyPrice($productId),
+                            default => [],
+                        };
                     }
 
                     Log::info(
@@ -514,7 +575,7 @@ class RequestMoySklad extends Command
 
             Bundles::query()->updateOrInsert(
                 [
-                    'ext_id' => $bundle['id']
+                    'ext_id' => $bundle['id'],
                 ],
                 [
                     'name' => $bundle['name'],
@@ -665,5 +726,26 @@ class RequestMoySklad extends Command
                 $product['salePrices'],
             );
         }
+    }
+
+    private static function getBundleBuyPrice(string $bundleId): float
+    {
+        $products = ProductsBundles::query()
+            ->where('bundle_id', '=', $bundleId)
+            ->get(['product_id', 'quantity'])
+            ->toArray();
+
+        return array_reduce(
+            $products,
+            static function($accum, mixed $item) {
+                $product = Product::query()
+                    ->where('ext_id', '=', $item['product_id'])
+                    ->get(['buy_price'])
+                    ->first()?->toArray();
+
+                return $accum + (float)($product['buy_price'] * $item['quantity']);
+            },
+            .0
+        );
     }
 }
