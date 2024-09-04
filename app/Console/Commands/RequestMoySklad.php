@@ -514,7 +514,9 @@ class RequestMoySklad extends Command
                                 ->where('ext_id', '=', $productId)
                                 ->get(['buy_price'])
                                 ->first()?->toArray() ?? [],
-                            ProductType::Bundle->value => static::getBundleBuyPrice($productId),
+                            ProductType::Bundle->value => [
+                                'buy_price' => static::getBundleBuyPrice($productId),
+                            ],
                             default => [],
                         };
                     }
