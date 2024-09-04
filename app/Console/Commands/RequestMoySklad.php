@@ -585,9 +585,9 @@ class RequestMoySklad extends Command
                     'article' => $bundle['article'] ?? '',
                     'ean13' => $bcodes['ean13'] ?? '',
                     'gtin' => $bcodes['gtin'] ?? '',
-                    'group_name' => $product['pathName'] ?? '',
+                    'group_name' => $bundle['pathName'] ?? '',
                     'brand' => $brand,
-                    'updated_at' => Carbon::parse($product['updated']),
+                    'updated_at' => Carbon::parse($bundle['updated']),
                 ],
             );
 
