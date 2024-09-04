@@ -495,17 +495,17 @@ class RequestMoySklad extends Command
                         $productId = '';
                     }
 
+                    $type = '';
+
+                    if ($isBundle) {
+                        $type = ProductType::Bundle->value;
+                    }
+
+                    if ($isProduct) {
+                        $type = ProductType::Product->value;
+                    }
+
                     if (!empty($productId)) {
-                        $type = '';
-
-                        if ($isBundle) {
-                            $type = ProductType::Bundle->value;
-                        }
-
-                        if ($isProduct) {
-                            $type = ProductType::Product->value;
-                        }
-
                         $product = match ($type) {
                             ProductType::Product->value => Product::query()
                                 ->where('ext_id', '=', $productId)
@@ -536,6 +536,7 @@ class RequestMoySklad extends Command
                             'count' => (int)$item['quantity'],
                             'shipped' => (int)$item['shipped'],
                             'buy_price' => $product['buy_price'] ?? .0,
+                            'product_type' => $type,
                             'sale_price' => $item['price']
                                 ? ((float)$item['price'] / 100) : .0,
                             'discount' => $item['discount'] ?? .0,
