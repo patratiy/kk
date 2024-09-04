@@ -100,7 +100,10 @@ class RequestMoySklad extends Command
             'filter' => sprintf('updated>%s', Carbon::now()->subDays(3)->format('Y-m-d H:i:s.v')),
         ];
 
-        if ($this->argument('type') === 'stocks') {
+        if (
+            $this->argument('type') === 'stocks'
+            || $this->argument('type') === 'regions'
+        ) {
             unset($params['filter']);
         }
 
