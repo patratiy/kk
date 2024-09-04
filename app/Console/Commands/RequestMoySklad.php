@@ -3,12 +3,14 @@
 namespace App\Console\Commands;
 
 use App\Models\Basket;
+use App\Models\Bundles;
 use App\Models\Counterparty;
 use App\Models\CounterPartyStatus;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prices;
 use App\Models\Product;
+use App\Models\ProductsBundles;
 use App\Models\Region;
 use App\Models\Stock;
 use App\Models\Stores;
@@ -121,6 +123,7 @@ class RequestMoySklad extends Command
                 'stores' => static::processStoreData($response->json()),
                 'counterparty' => static::processCounterpartyData($response->json()),
                 'stocks' => static::processStocksData($response->json()),
+                'bundles' => static::processBundlesData($response->json(), $http),
                 'regions' => static::processRegionData($response->json()),
                 default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
             };
@@ -151,7 +154,7 @@ class RequestMoySklad extends Command
 
     private static function extractGuidFromUri(string $uri): string
     {
-        return last(explode('/', $uri));
+        return last(explode('/', $uri)) ?: '';
     }
 
     private static function getMethodPath(string $type, array $params = []): string
@@ -165,6 +168,8 @@ class RequestMoySklad extends Command
             'counterparty' => '/entity/counterparty',
             'counterparty_status' => '/entity/counterparty/metadata',
             'stocks' => '/report/stock/bystore',
+            'bundles' => '/entity/bundle',
+            'components' => "/entity/bundle/{$params['bundle_id']}/components",
             'regions' => '/entity/region',
             default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
         };
@@ -478,6 +483,105 @@ class RequestMoySklad extends Command
                     );
                 },
                 $basket['rows'] ?? [],
+            );
+        }
+    }
+
+    private static function processBundlesData(array $data, PendingRequest $request): void
+    {
+
+        if (empty($data['rows'])) {
+            return;
+        }
+
+        foreach ($data['rows'] as $bundle) {
+            $brand = static::getValueAttributeById(
+                params: $bundle,
+                attrId: '0076b518-d9b3-11eb-0a80-06ae0011d1aa',
+            );
+
+            $folderId = isset($bundle['productFolder'])
+                ? static::extractGuidFromUri($bundle['productFolder']['meta']['href'])
+                : '';
+
+            $bcodes = [];
+
+            foreach ($bundle['barcodes'] ?? [] as $bcode) {
+                $key = current(array_keys($bcode));
+                $value = current(array_values($bcode));
+                $bcodes[$key] = $value;
+            }
+
+            Bundles::query()->updateOrInsert(
+                [
+                    'ext_id' => $bundle['id']
+                ],
+                [
+                    'name' => $bundle['name'],
+                    'group_id' => $folderId,
+                    'code' => $bundle['code'],
+                    'ext_code' => $bundle['externalCode'],
+                    'article' => $bundle['article'] ?? '',
+                    'ean13' => $bcodes['ean13'] ?? '',
+                    'gtin' => $bcodes['gtin'] ?? '',
+                    'group_name' => $product['pathName'] ?? '',
+                    'brand' => $brand,
+                    'updated_at' => Carbon::parse($product['updated']),
+                ],
+            );
+
+            array_map(
+                static function (mixed $item) use ($bundle) {
+                    Prices::query()->updateOrInsert(
+                        [
+                            'product_id' => $bundle['id'],
+                            'type_id' => $item['priceType']['id'],
+                        ],
+                        [
+                            'type_name' => $item['priceType']['name'],
+                            'value' => $item['value'] / 100,
+                        ],
+                    );
+                },
+                $bundle['salePrices'],
+            );
+
+            usleep(500000);
+
+            $path = static::getMethodPath('components', ['bundle_id' => $bundle['id']]);
+
+            $response = $request->get(
+                static::getUri($path),
+                [
+                    'limit' => 50,
+                    'offset' => 0,
+                ],
+            );
+
+            if ($response->status() === 429) {
+                Log::error(
+                    'Service response with 429, wait 10 sec',
+                    ['bundle_id' => $bundle['id']],
+                );
+                sleep(10);
+            }
+
+            $components = $response->json();
+
+            array_map(
+                static function (mixed $item) use ($bundle) {
+                    ProductsBundles::query()->updateOrInsert(
+                        [
+                            'ext_id' => $item['id'],
+                        ],
+                        [
+                            'bundle_id' => $bundle['id'],
+                            'product_id' => static::extractGuidFromUri($bundle['productFolder']['meta']['href'] ?? ''),
+                            'quantity' => (int)$item['quantity'],
+                        ],
+                    );
+                },
+                $components['rows'] ?? [],
             );
         }
     }
