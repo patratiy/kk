@@ -17,6 +17,7 @@ class Basket extends Model
         'count',
         'sale_price',
         'discount',
+        'product_type',
     ];
 
     public function order()

@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prices;
 use App\Models\Product;
+use App\Models\Region;
 use App\Models\Stock;
 use App\Models\Stores;
 use Carbon\Carbon;
@@ -113,8 +114,6 @@ class RequestMoySklad extends Command
             return Command::SUCCESS;
         }
 
-//        Log::info(print_r($response->json(), true));
-
         while ($response['meta']['size'] > $this->offset) {
             match ($this->argument('type')) {
                 'catalog' => static::processCatalogData($response->json()),
@@ -122,6 +121,7 @@ class RequestMoySklad extends Command
                 'stores' => static::processStoreData($response->json()),
                 'counterparty' => static::processCounterpartyData($response->json()),
                 'stocks' => static::processStocksData($response->json()),
+                'regions' => static::processRegionData($response->json()),
                 default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
             };
 
@@ -165,6 +165,7 @@ class RequestMoySklad extends Command
             'counterparty' => '/entity/counterparty',
             'counterparty_status' => '/entity/counterparty/metadata',
             'stocks' => '/report/stock/bystore',
+            'regions' => '/entity/region',
             default => throw new RuntimeException('Parameter type is mandatory, input type is not support!'),
         };
     }
@@ -200,6 +201,27 @@ class RequestMoySklad extends Command
                     'address' => $store['address'] ?? '',
                     'ext_code' => $store['externalCode'],
                     'updated_at' => Carbon::parse($store['updated']),
+                ],
+            );
+        }
+    }
+
+    private static function processRegionData(array $data): void
+    {
+        if (empty($data['rows'])) {
+            return;
+        }
+
+        foreach ($data['rows'] as $region) {
+            Region::query()->updateOrInsert(
+                [
+                    'ext_id' => $region['id'],
+                ],
+                [
+                    'name' => $region['name'],
+                    'code' => $region['code'],
+                    'ext_code' => $region['externalCode'],
+                    'updated_at' => Carbon::parse($region['updated']),
                 ],
             );
         }
@@ -414,7 +436,10 @@ class RequestMoySklad extends Command
                         ? static::extractGuidFromUri($item['assortment']['meta']['href'])
                         : '';
 
-                    if (!str_contains($item['assortment']['meta']['href'], 'product')) {
+                    if (
+                        !str_contains($item['assortment']['meta']['href'], 'product')
+                        || !str_contains($item['assortment']['meta']['href'], 'bundle')
+                    ) {
                         $productId = '';
                     }
 
