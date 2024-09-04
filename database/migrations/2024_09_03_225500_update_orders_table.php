@@ -4,11 +4,11 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class UpdateOrderTable extends Migration
+class UpdateOrdersTable extends Migration
 {
     public function up()
     {
-        Schema::create(
+        Schema::table(
             'orders',
             static function (Blueprint $table) {
                 $table->string('site_id')->nullable();
