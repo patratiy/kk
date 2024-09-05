@@ -643,7 +643,7 @@ class RequestMoySklad extends Command
                         ],
                         [
                             'bundle_id' => $bundle['id'],
-                            'product_id' => static::extractGuidFromUri($bundle['productFolder']['meta']['href'] ?? ''),
+                            'product_id' => static::extractGuidFromUri($item['assortment']['meta']['href'] ?? ''),
                             'quantity' => (int)$item['quantity'],
                         ],
                     );
