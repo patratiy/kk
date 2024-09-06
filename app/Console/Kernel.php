@@ -41,6 +41,11 @@ class Kernel extends ConsoleKernel
             ->hourlyAt([20, 50])
             ->runInBackground()
             ->withoutOverlapping();
+
+        $schedule->command('sync:moysklad bundles')
+            ->hourlyAt([22, 52])
+            ->runInBackground()
+            ->withoutOverlapping();
     }
     protected $commands = [
         \App\Console\Commands\SeedTestData::class,

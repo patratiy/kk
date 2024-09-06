@@ -5,19 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Basket extends Model
+class AddressOrder extends Model
 {
     use HasFactory;
 
-    protected $table = 'basket';
+    protected $table = 'address_order';
 
     protected $fillable = [
         'order_id',
-        'product_id',
-        'count',
-        'sale_price',
-        'discount',
-        'product_type',
+        'full_address',
+        'city',
+        'region_id',
     ];
 
     public function order()
@@ -25,8 +23,8 @@ class Basket extends Model
         return $this->hasOne(Order::class, 'ext_id', 'order_id');
     }
 
-    public function product()
+    public function region()
     {
-        return $this->hasOne(Product::class, 'ext_id', 'product_id');
+        return $this->hasOne(Region::class, 'ext_id', 'region_id');
     }
 }
