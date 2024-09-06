@@ -33,6 +33,8 @@ class RequestMoySklad extends Command
 
     private string $privateKey;
     private static string $baseUrl;
+    private static array $excludeEntityFilter;
+    private static int $timeoutRequest;
 
     /**
      * The name and signature of the console command.
@@ -52,6 +54,8 @@ class RequestMoySklad extends Command
     {
         $this->privateKey = config('app.moy_sklad');
         static::$baseUrl = config('app.base_url_api_moy_sklad');
+        static::$excludeEntityFilter = explode(',', config('add.name_sync_entity_for_full_load'));
+        static::$timeoutRequest = config('app.time_out_between_request');
 
         parent::__construct();
     }
@@ -101,8 +105,11 @@ class RequestMoySklad extends Command
         ];
 
         if (
-            $this->argument('type') === 'stocks'
-            || $this->argument('type') === 'regions'
+            in_array(
+                $this->argument('type'),
+                self::$excludeEntityFilter,
+                true,
+            )
         ) {
             unset($params['filter']);
         }
@@ -463,7 +470,7 @@ class RequestMoySklad extends Command
             }
 
             //делаем паузу, что бы не спамить сервис, 3 сек
-            usleep(500000);
+            usleep(self::$timeoutRequest * 1000);
 
             $path = static::getMethodPath('basket', ['order_id' => $order['id']]);
 
@@ -613,7 +620,7 @@ class RequestMoySklad extends Command
                 $bundle['salePrices'],
             );
 
-            usleep(500000);
+            usleep(self::$timeoutRequest * 1000);
 
             $path = static::getMethodPath('components', ['bundle_id' => $bundle['id']]);
 

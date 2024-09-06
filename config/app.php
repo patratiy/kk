@@ -127,6 +127,10 @@ return [
 
     'moy_sklad' => env('MOY_SKLAD_TOKEN'),
 
+    'name_sync_entity_for_full_load' => env('NAME_SYNC_ENTITY_FOR_FULL_LOAD'),
+
+    'time_out_between_request' => env('TIME_OUT_BETWEEN_REQUEST'),
+
     'cipher' => 'AES-256-CBC',
 
     /*
