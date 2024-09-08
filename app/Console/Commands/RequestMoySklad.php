@@ -55,7 +55,7 @@ class RequestMoySklad extends Command
     {
         $this->privateKey = config('app.moy_sklad');
         static::$baseUrl = config('app.base_url_api_moy_sklad');
-        static::$excludeEntityFilter = explode(',', config('add.name_sync_entity_for_full_load'));
+        static::$excludeEntityFilter = explode(',', config('app.name_sync_entity_for_full_load'));
         static::$timeoutRequest = config('app.time_out_between_request');
         static::$daysRangeAgo = config('app.days_update_interval');
 
