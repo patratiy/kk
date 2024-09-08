@@ -14,6 +14,7 @@ DB_PASSWORD='_X#675:w88F8'
 ### установка миграций
 
 ```bash
+php artisan migrate:install
 php artisan migrate
 ```
 
