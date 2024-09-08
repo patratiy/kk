@@ -466,7 +466,7 @@ class RequestMoySklad extends Command
                     ],
                     [
                         'full_address' => $order['shipmentAddress'],
-                        'city' => $order['shipmentAddressFull']['city'],
+                        'city' => $order['shipmentAddressFull']['city'] ?? '',
                         'region_id' => $regionId,
                     ],
                 );
@@ -763,7 +763,7 @@ class RequestMoySklad extends Command
                     ->get(['buy_price'])
                     ->first()?->toArray();
 
-                return $accum + (float)($product['buy_price'] * $item['quantity']);
+                return $accum + (($product['buy_price'] ?? .0) * $item['quantity']);
             },
             .0,
         );
