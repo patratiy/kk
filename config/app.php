@@ -131,6 +131,8 @@ return [
 
     'time_out_between_request' => env('TIME_OUT_BETWEEN_REQUEST'),
 
+    'days_update_interval' => env('DAYS_INTERVAL_UPDATE'),
+
     'cipher' => 'AES-256-CBC',
 
     /*

@@ -35,6 +35,7 @@ class RequestMoySklad extends Command
     private static string $baseUrl;
     private static array $excludeEntityFilter;
     private static int $timeoutRequest;
+    private static int $daysRangeAgo;
 
     /**
      * The name and signature of the console command.
@@ -56,6 +57,7 @@ class RequestMoySklad extends Command
         static::$baseUrl = config('app.base_url_api_moy_sklad');
         static::$excludeEntityFilter = explode(',', config('add.name_sync_entity_for_full_load'));
         static::$timeoutRequest = config('app.time_out_between_request');
+        static::$daysRangeAgo = config('app.days_update_interval');
 
         parent::__construct();
     }
@@ -101,7 +103,12 @@ class RequestMoySklad extends Command
         $params = [
             'limit' => $this->limit,
             'offset' => $this->offset,
-            'filter' => sprintf('updated>%s', Carbon::now()->subDays(3)->format('Y-m-d H:i:s.v')),
+            'filter' => sprintf(
+                'updated>%s',
+                Carbon::now()
+                    ->subDays(static::$daysRangeAgo)
+                    ->format('Y-m-d H:i:s.v'),
+            ),
         ];
 
         if (
@@ -750,7 +757,7 @@ class RequestMoySklad extends Command
 
         return array_reduce(
             $products,
-            static function($accum, mixed $item) {
+            static function ($accum, mixed $item) {
                 $product = Product::query()
                     ->where('ext_id', '=', $item['product_id'])
                     ->get(['buy_price'])
@@ -758,7 +765,7 @@ class RequestMoySklad extends Command
 
                 return $accum + (float)($product['buy_price'] * $item['quantity']);
             },
-            .0
+            .0,
         );
     }
 }
