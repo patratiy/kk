@@ -1,4 +1,12 @@
-# СЕРВИС АНАЛИТИКА (ERP мойсклад)
+# СЕРВИС АНАЛИТИКА (ERP МойСклад)
+
+### Установка пакетов из packagist
+
+```bash
+php composer.phar install
+```
+
+загрузка композера https://getcomposer.org/download/
 
 ### Заполнить актуальные подключения к БД в .env
 
