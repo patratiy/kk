@@ -78,6 +78,14 @@ php artisan config:cache
 php artisan config:clear
 ```
 
+### настроить права для работы apache2 или nginx с файловой системой, папка storage
+
+```bash
+cd /document_root_project
+chown www-data:www-data ./storage
+```
+
+под пользователем www-data может быть любой др. пользователь от которого запущен apache2 (httpd) 
 
 
 
